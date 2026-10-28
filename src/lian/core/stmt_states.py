@@ -903,10 +903,16 @@ class StmtStates:
         if value is not None:
             cache_key = None
             # Binary result states carry no operand-specific provenance, so a
-            # concrete boolean needs only one state per value at this definition.
-            if result_state_cache is not None and isinstance(value, bool):
-                cache_key = (value, data_type)
-                if cache_key in result_state_cache:
+            # concrete value needs only one state per value at this definition.
+            # Dedup is not limited to bool: chained bit ops (e.g. bit_reverse)
+            # otherwise materialize the Cartesian product of operand states.
+            if result_state_cache is not None:
+                try:
+                    cache_key = (value, data_type)
+                    hash(cache_key)
+                except TypeError:
+                    cache_key = None
+                if cache_key is not None and cache_key in result_state_cache:
                     return {result_state_cache[cache_key]}
 
             result_state_index = self.create_state_and_add_space(
